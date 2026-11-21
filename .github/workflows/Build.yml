@@ -14,12 +14,28 @@ jobs:
       - name: Install tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y zipalign apksigner
+          sudo apt-get install -y zipalign apksigner unzip
           curl -fsSL -o apktool.jar https://github.com/iBotPeaches/Apktool/releases/download/v2.9.3/apktool_2.9.3.jar
+      - name: Locate project files
+        run: |
+          if [ -z "$(find . -iname 'BlurIcons_7.1.apk' -not -path './.git/*' | head -n1)" ]; then
+            for z in $(find . -iname '*.zip' -not -path './.git/*'); do unzip -o "$z" -d unzipped; done
+          fi
+          APK=$(find . -iname 'BlurIcons_7.1.apk' -not -path './.git/*' | head -n1)
+          PATCH=$(find . -name 'patch.py' -not -path './.git/*' | head -n1)
+          echo "APK=$APK" >> "$GITHUB_ENV"
+          echo "PATCH=$PATCH" >> "$GITHUB_ENV"
+          echo "APK: $APK"
+          echo "PATCH: $PATCH"
+          if [ -z "$APK" ] || [ -z "$PATCH" ]; then
+            echo "Missing files. Repo contents:"
+            find . -not -path './.git/*' -type f | head -50
+            exit 1
+          fi
       - name: Decode
-        run: java -jar apktool.jar d -f input/BlurIcons_7.1.apk -o work
+        run: java -jar apktool.jar d -f "$APK" -o work
       - name: Patch
-        run: python3 patch/patch.py work
+        run: python3 "$PATCH" work
       - name: Build
         run: java -jar apktool.jar b work -o unsigned.apk
       - name: Align and sign
